@@ -6,7 +6,7 @@ pycryptodome [安装](http://pycryptodome.readthedocs.io/en/latest/src/installat
 uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 [关于asyncio+uvloop的并发性能](https://magic.io/blog/uvloop-blazing-fast-python-networking/)
 <br>
-##特性
+## 特性
 * 单端口多用户
 * 多线程工作(一个认证线程+n个转发线程)
 * 二次开发认证和转发方法较为简便
@@ -16,7 +16,7 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
 * 客户端和服务端支持全平台
 <br>
-##使用
+## 使用
 Client目录下
 编辑ClientConfig.json<br>
 <pre><code>
@@ -99,5 +99,3 @@ Server目录下
 特别注意执行目录一定要在各自目录下,否则会提示找不到Mod中的pack和auth<br>
 
 之后按照正常使用socks5代理的方法使用即可<br>
-
-##服务端统计数据
