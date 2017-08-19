@@ -15,7 +15,7 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 基于asyncio和uvloop,理论上有很强的并发能力
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
 * 客户端和服务端支持全平台
-<br>
+
 ## 使用
 Client目录下<br>
 编辑ClientConfig.json<br>
