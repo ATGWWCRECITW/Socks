@@ -49,8 +49,7 @@ Client目录下
 </code></pre>
 Server目录下
 编辑Config.json<br>
-<pre>
-<code>
+<pre><code>
 {
     "ServerBindAddress":"0.0.0.0",#服务端监听地址
     "ServerPublicAddress":"127.0.0.1",#服务器地址(可以是域名)，这个设置非常重要，如有误，udp模式将无法正常工作
@@ -60,9 +59,45 @@ Server目录下
     "UpdateInterval":300#统计数据刷新间隔(每5分钟刷新一次本地流量记录文件)
 }
 </code></pre>
+编辑User.json<br>
+<pre><code>
+{
+    "testUser": {#用户名
+        "AuthMethod": "Origin",#认证方式，这个设置没用，以后可能会去掉
+        "Password": "testUser",#用户密码
+        "Flow": {#流量统计记录，服务端自己会维护，每次更新流量会加到原来的记录上
+            "TCP": {
+                "IPv4": {
+                    "Up": 0,
+                    "Down": 0
+                },
+                "IPv6": {
+                    "Up": 0,
+                    "Down": 0
+                }
+            },
+            "UDP": {
+                "IPv4": {
+                    "Up": 0,
+                    "Down": 0
+                },
+                "IPv6": {
+                    "Up": 0,
+                    "Down": 0
+                }
+            }
+        },
+        "Connection": 0,#连接数统计，这个设置没用，以后可能会去掉
+        "MaxConnection": 100,#最大连接数，暂时还没有加这个功能
+        "MaxSpeedPerConn": 10000#单连接最大速度，暂时还没有加这个功能
+    }
+}
+</code></pre>
 完成配置后
 在Server目录下执行：python3 MSocksServer.py开启服务端<br>
 在Client目录下执行：python3 MSocksClient.py开启客户端<br>
-特别注意执行目录一定要在各自目录下,否则会提示找不到Mod中的pack和auth
+特别注意执行目录一定要在各自目录下,否则会提示找不到Mod中的pack和auth<br>
 
-之后按照正常使用socks5代理的方法使用即可
+之后按照正常使用socks5代理的方法使用即可<br>
+
+##服务端统计数据
