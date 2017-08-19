@@ -4,7 +4,7 @@
 python3.5 或以上<br>
 pycryptodome [安装](http://pycryptodome.readthedocs.io/en/latest/src/installation.html)(注意是pycryptodome不是pycryptodomex)<br>
 uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
-[关于asyncio+uvloop的并发性能安装](https://magic.io/blog/uvloop-blazing-fast-python-networking/)
+[关于asyncio+uvloop的并发性能](https://magic.io/blog/uvloop-blazing-fast-python-networking/)
 <br>
 ##特性
 * 单端口多用户
@@ -15,6 +15,7 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 基于asyncio和uvloop,理论上有很强的并发能力
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
 * 客户端和服务端支持全平台
+
 ##使用
 Client目录下
 编辑ClientConfig.json<br>
@@ -48,7 +49,8 @@ Client目录下
 </code></pre>
 Server目录下
 编辑Config.json<br>
-<code><pre>
+<pre>
+<code>
 {
     "ServerBindAddress":"0.0.0.0",#服务端监听地址
     "ServerPublicAddress":"127.0.0.1",#服务器地址(可以是域名)，这个设置非常重要，如有误，udp模式将无法正常工作
