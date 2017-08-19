@@ -57,7 +57,9 @@ Server目录下
     "ServerPort":80,#服务端监听端口
     "UserListType":"Json",#暂时没用
     "AuthMethod":"Origin",#认证方法，所有进行连接的客户端都必须使用这个方法
-    "UpdateInterval":300#统计数据刷新间隔(每5分钟刷新一次本地流量记录文件)
+    "UpdateInterval":300,#统计数据刷新间隔(每5分钟刷新一次本地流量记录文件)
+    "ConnectionTimeout":5,#连接超时单位秒，允许小数
+    "SpeedCheckPerSec":2#暂时没用的设置
 }
 </code></pre>
 编辑User.json<br>
@@ -90,7 +92,7 @@ Server目录下
         },
         "Connection": 0,#连接数统计，这个设置没用，以后可能会去掉
         "MaxConnection": 100,#最大连接数，暂时还没有加这个功能
-        "MaxSpeedPerConn": 10000#单连接最大速度，暂时还没有加这个功能
+        "MaxSpeedPerConn": 10000#单连接最大速度
     }
 }
 </code></pre>
