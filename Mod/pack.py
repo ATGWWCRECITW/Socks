@@ -46,14 +46,16 @@ class Pack(object):
 
     async def GetFirstRequest(self,ConnectInfo, CSSocket):
         """获取第一次请求信息,直接使用socks5协议，不做额处理,
-        需要完成ConnectInfo中CMD,Host,Port,Family字段的获取,TCP函数"""
+        需要完成ConnectInfo中CMD,Host,Port,Family字段的获取,TCP函数,
+        本函数的执行时间限制在TCPRely中已经设置"""
+        
         ConnectInfo["FirstRequestMethod"] = "socks5"
         #loop.sock_recv(Socket, 4) 并不能保证一定可以读入指定数量的内容
         ConnectInfo["VER"],ConnectInfo["CMD"],RSV,ConnectInfo["ATYP"] = await self.Loop.sock_recv(CSSocket, 4)
-        if ConnectInfo["VER"] != 5 or ConnectInfo["CMD"] not in (1,2,3) or \
-        RSV != 0 or ConnectInfo["ATYP"] not in (1,3,4):
-            CSSocket.close()
-            return None
+        if ConnectInfo["VER"] != 5 or ConnectInfo["CMD"] not in (1,2,3) or RSV != 0 or ConnectInfo["ATYP"] not in (1,3,4):
+            #CSSocket.close() 会由TCPRely关闭
+            raise ValueError("Request Code Value Error : Unsupport Code VER:%s,CMD:%s,RSV:%s,ATPY:%s"% \
+                                        (ConnectInfo["VER"],ConnectInfo["CMD"],RSV,ConnectInfo["ATYP"]))
 
         if ConnectInfo["ATYP"] == 1:
             ConnectInfo["DST_ADDR_NUM"] = None

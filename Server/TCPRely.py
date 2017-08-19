@@ -3,9 +3,6 @@ from TCPServerProtocol import *
 from pprint import pprint
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Mod import pack, auth
-if sys.platform == 'linux':
-    import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 multiprocessing.allow_connection_pickling()
 Config = json.load(open("Config.json"))
 class ServerTcpRelyProcess(object):
@@ -16,13 +13,19 @@ class ServerTcpRelyProcess(object):
         Pipe 为multiprocessing.Pipe()"""
         self.Switch = Switch
         self.Pipe = Pipe
-        #self.UDPPorts = UDPPorts
         if sys.platform == 'win32':
             logging.info("Platform Detected win32, Use get_event_loop")
             self.Loop = asyncio.get_event_loop()
         elif sys.platform == 'linux':
-            logging.info("Platform Detected linux, Use uvloop first")
-            self.Loop = asyncio.get_event_loop()
+            try:
+                import uvloop
+                asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+            except Exception:
+                logging.info("Platform Detected linux, Use get_event_loop")
+                self.Loop = asyncio.get_event_loop()
+            else: 
+                logging.info("Platform Detected linux, Use uvloop")
+                self.Loop = asyncio.get_event_loop()
         else:
             logging.info("Platform Detected Unknow, Use get_event_loop")
             self.Loop = asyncio.get_event_loop()
@@ -40,61 +43,50 @@ class ServerTcpRelyProcess(object):
         CSSocket.setblocking(False)
         ConnectInfo["ClientAddr"] = CSSocket.getpeername()
         #获取请求
-        Packer = pack.Packers[ConnectInfo["UserInfo"]["PackMethod"]](ConnectInfo, self.Loop)
+        Packer = pack.Packers[ConnectInfo["AuthInfo"]["PackMethod"]](ConnectInfo, self.Loop)
         #获取第一次请求信息
-        ConnectInfo = await Packer.GetFirstRequest(ConnectInfo, CSSocket)
-        if ConnectInfo is not None:
-            Flow = {
-                "UserName":ConnectInfo["UserInfo"]["UserName"],
-                "IPv4":{"Up":0,"Down":0},
-                "IPv6":{"Up":0,"Down":0}
-                }
+        try:
+            ConnectInfo = await asyncio.wait_for(fut=Packer.GetFirstRequest(ConnectInfo, CSSocket), timeout=Config["ConnectionTimeout"], loop=self.Loop)
+        except ValueError as e:
+            if "Request Code Value Error" in str(e):
+                logging.debug("GetFirstRequest Failed: %s"%e)
+                CSSocket.send(b'\x05\x01\x00\x01\x00\x00\x00\x00\x01')
+                CSSocket.close()
+                self.CallbackConnClose(ConnectInfo)
+                return None
+        except asyncio.TimeoutError as e:
+            #X'01' general SOCKS server failure
+            logging.debug("GetFirstRequest Timeout %s"%e)
+            CSSocket.send(b'\x05\x01\x00\x01\x00\x00\x00\x00\x01')
+            CSSocket.close()
+            self.CallbackConnClose(ConnectInfo)
+            return None
+        Flow = {
+            "UserName":ConnectInfo["AuthInfo"]["UserName"],
+            "IPv4":{"Up":0,"Down":0},
+            "IPv6":{"Up":0,"Down":0}
+            }
+
+        try:
             if ConnectInfo["CMD"] == 1:#connect
                 #注意这里用大小写P来区分类和变量
                 CStransport,CSprotocol = await self.Loop.connect_accepted_socket(lambda:CSProtocol(ConnectInfo, Packer, Flow, self.OutPutFlowRecoder), CSSocket)
                 CStransport.pause_reading()
-                try:
-                    create_conn = self.Loop.create_connection(lambda:DSProtocol(ConnectInfo, Packer, Flow, CStransport, CSprotocol), host=ConnectInfo["Host"], port=ConnectInfo["Port"])
-                    DStransport,DSprotocol = await asyncio.wait_for(fut=create_conn, timeout=5, loop=self.Loop)
-                #|VER | REP |  RSV |  RANDOM(6)
-                except (TimeoutError,asyncio.TimeoutError) as e:
-                    #asyncio.TimeoutError和TimeoutError两种异常要区分开
-                    logging.debug("create_connection Timeout %s"%str(e))
-                    #这里使用了 X'04' Host unreachable 错误码
-                    ConnectInfo["FirstResponse"] = b'\x05\x04\x00\x01\x00\x00\x00\x00\x01'
-                    CStransport.write(ConnectInfo["FirstResponse"])
-                    CStransport.close()
-                except ConnectionRefusedError as e:
-                    logging.debug("create_connection refused %s"%str(e))
-                    ConnectInfo["FirstResponse"] = b'\x05\x05\x00\x01\x00\x00\x00\x00\x01'
-                    CStransport.write(ConnectInfo["FirstResponse"])
-                    CStransport.close()
-                except OSError as e:
-                    if "No route to host" in str(e):
-                        logging.debug("Addr:%s Host:%s Port:%s"%(ConnectInfo["DST_ADDR"],ConnectInfo["Host"], ConnectInfo["Port"]))
-                        logging.debug("create_connection refused %s"%str(e))
-                        ConnectInfo["FirstResponse"] = b'\x05\x04\x00\x01\x00\x00\x00\x00\x01'
-                        CStransport.write(ConnectInfo["FirstResponse"])
-                        CStransport.close()
-                else:
-                    ConnectInfo["FirstResponse"] = Packer.FirstResponse(DStransport.get_extra_info('socket'), Config["ServerPublicAddress"])
-                    CStransport.write(ConnectInfo["FirstResponse"])
-                    CStransport.resume_reading()
-                    
-            elif ConnectInfo["CMD"] == 2:#blind,socks5下客户端请求的blind只接受一次连接, 链接完成后server应被关闭, 关闭工作由CSprotocol完成
-                pprint(ConnectInfo)
-                CStransport,CSprotocol = await self.Loop.connect_accepted_socket(lambda:CSProtocol(ConnectInfo, Packer, Flow, self.OutPutFlowRecoder), CSSocket)
-                CStransport.pause_reading()
-                Server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                Server.setblocking(False)
-                Server.bind((self.Host,self.Port))
-                Server.listen(1024)
-                
-                create_conn = self.Loop.create_connection(lambda:DSProtocol(ConnectInfo, Packer, Flow, CStransport, CSprotocol), host=ConnectInfo["Host"], port=ConnectInfo["Port"])
-                DStransport,DSprotocol = await asyncio.wait_for(fut=create_conn, timeout=2, loop=self.Loop)
-                ConnectInfo["FirstResponse"] = Packer.FirstResponse(DStransport.get_extra_info('socket'))
+                create_conn = self.Loop.create_connection(lambda:DSProtocol(self.Loop, ConnectInfo, Packer, Flow, CStransport, CSprotocol), host=ConnectInfo["Host"], port=ConnectInfo["Port"])
+                DStransport,DSprotocol = await asyncio.wait_for(fut=create_conn, timeout=Config["ConnectionTimeout"], loop=self.Loop)
+                ConnectInfo["FirstResponse"] = Packer.FirstResponse(DStransport.get_extra_info('socket'), Config["ServerPublicAddress"])
                 CStransport.write(ConnectInfo["FirstResponse"])
                 CStransport.resume_reading()
+
+            elif ConnectInfo["CMD"] == 2:#blind,socks5下客户端请求的blind只接受一次连接, 链接完成后server应被关闭, 关闭工作由CSprotocol完成
+                logging.INFO("TCP bind Not Support yet")
+                CStransport,CSprotocol = await self.Loop.connect_accepted_socket(lambda:CSProtocol(ConnectInfo, Packer, Flow, self.OutPutFlowRecoder), CSSocket)
+                CStransport.pause_reading()
+                TempServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                TempServer.setblocking(False)
+                TempServer.bind((self.Host,self.Port))
+                TempServer.listen(1)
+                CStransport.close()
 
             elif ConnectInfo["CMD"] == 3:#建立一个UDP服务器
                 #添加CSSocket至Loop
@@ -104,21 +96,40 @@ class ServerTcpRelyProcess(object):
                 CSUprotocol.UStransport = UStransport
                 ConnectInfo["FirstUDPResponse"] = Packer.FirstUDPResponse(UStransport.get_extra_info('socket'), (Config["ServerPublicAddress"],UStransport.get_extra_info("socket").getsockname()[1]))
                 CSUtransport.write(ConnectInfo["FirstUDPResponse"])
-        else:
-            logging.debug("GetFirstRequestFailed")
-            CSSocket.close()
-            self.CallbackConnClose(ConnectInfo)
 
+        except (TimeoutError,asyncio.TimeoutError) as e:
+            #asyncio.TimeoutError和TimeoutError两种异常要区分开
+            logging.debug("create_connection Timeout %s"%str(e))
+            #这里使用了 X'04' Host unreachable 错误码
+            CStransport.write(b'\x05\x04\x00\x01\x00\x00\x00\x00\x01')
+            CStransport.close()
+        except ConnectionRefusedError as e:
+            logging.debug("create_connection refused %s"%str(e))
+            CStransport.write(b'\x05\x05\x00\x01\x00\x00\x00\x00\x01')
+            CStransport.close()
+        except OSError as e:
+            if "No route to host" in str(e):
+                logging.debug("Addr:%s Host:%s Port:%s"%(ConnectInfo["DST_ADDR"],ConnectInfo["Host"], ConnectInfo["Port"]))
+                logging.debug("create_connection Failed %s"%str(e))
+                CStransport.write(b'\x05\x04\x00\x01\x00\x00\x00\x00\x01')
+                CStransport.close()
+        except socket.gaierror as e:
+            if "Name or service not known" in str(e):
+                logging.debug("Addr:%s Host:%s Port:%s"%(ConnectInfo["DST_ADDR"],ConnectInfo["Host"], ConnectInfo["Port"]))
+                logging.debug("create_connection Failed %s"%str(e))
+                CStransport.write(b'\x05\x04\x00\x01\x00\x00\x00\x00\x01')
+                CStransport.close()
+            
     def OutPutFlowRecoder(self, Type, Flow, ConnectInfo):
         """把流量数据回传回主线程,并通知主线程连接结束"""
         self.Pipe.send(Flow)
         self.Switch.send(b'\x02' if Type == "TCP" else b'\x03')
         self.CallbackConnClose(ConnectInfo)
 
-
     def CallbackConnClose(self, ConnectInfo):
+        """通知主线程一个连接被关闭了"""
         self.Pipe.send({
-            "UserName":ConnectInfo["UserInfo"]["UserName"],
+            "UserName":ConnectInfo["AuthInfo"]["UserName"],
             "Addr":ConnectInfo["ClientAddr"][0]
         })
         self.Switch.send(b'\x04')
@@ -152,8 +163,15 @@ class TcpConnAccepter(object):
                 logging.info("Platform Detected win32, Use get_event_loop")
                 self.Loop = asyncio.get_event_loop()
             elif sys.platform == 'linux':
-                logging.info("Platform Detected linux, Use uvloop first")
-                self.Loop = asyncio.get_event_loop()
+                try:
+                    import uvloop
+                    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+                except Exception:
+                    logging.info("Platform Detected linux,import uvloop Failed:%S Use get_event_loop"%e)
+                    self.Loop = asyncio.get_event_loop()
+                else: 
+                    logging.info("Platform Detected linux, Use uvloop")
+                    self.Loop = asyncio.get_event_loop()
             else:
                 logging.info("Platform Detected Unknow, Use get_event_loop")
                 self.Loop = asyncio.get_event_loop()
@@ -196,15 +214,16 @@ class TcpConnAccepter(object):
         self.Loop.close()
 
     async def CompleteAuth(self, CSSocket, ConnectInfo):
+        """调用自定义的auth类完成认证工作，因为抛异常在后面在完成回调中不易处理，此处如果发生错误就直接返回None"""
         Auther = auth.Authers[Config["AuthMethod"]](ConnectInfo, self.Loop)
         try:
-            ConnectInfo["UserInfo"] = await asyncio.wait_for(Auther.Auth(self.UserList, CSSocket), timeout=2, loop=self.Loop)
+            ConnectInfo["AuthInfo"] = await asyncio.wait_for(Auther.Auth(self.UserList, CSSocket), timeout=2, loop=self.Loop)
         except asyncio.TimeoutError as e:
             logging.debug("CompleteAuth TimeOut")
-            ConnectInfo["UserInfo"] = None
+            ConnectInfo["AuthInfo"] = None
         except Exception as e:
             logging.debug(e)
-            ConnectInfo["UserInfo"] = None
+            ConnectInfo["AuthInfo"] = None
         finally:
             return ConnectInfo
 
@@ -212,16 +231,18 @@ class TcpConnAccepter(object):
         """输出Socket,完成Connection计数"""
         #装作负载均衡
         ConnectInfo = CompleteAuth.result()
-        if ConnectInfo["UserInfo"] is not None:
+        if ConnectInfo["AuthInfo"] is not None:
             logging.debug("Auth Completed")
             self.count = (self.count+1)%len(self.ProcessList)
             ProcessManager = self.ProcessList[self.count]
+            #计数
+            UserName = ConnectInfo["AuthInfo"]["UserName"]
+            ConnectInfo["User"] = self.UserList[UserName]
+            
             ProcessManager["PPipe"].send(ConnectInfo)
             #linux下传递handel不需要pid
             reduction.send_handle(ProcessManager["PPipe"], CSSocket.fileno(), ProcessManager["Process"].pid)
             ProcessManager["Handle"].send(b'\x01')
-            #计数
-            UserName = ConnectInfo["UserInfo"]["UserName"]
             try:
                 self.Connection[UserName]["ConnNum"] += 1
                 try:

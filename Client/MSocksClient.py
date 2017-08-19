@@ -5,7 +5,10 @@ from TCPRely import *
 import time
 multiprocessing.allow_connection_pickling()
 logging.basicConfig(level=logging.DEBUG)
-Config = json.load(open("ClientConfig.json"))
+Configs = json.load(open("ClientConfig.json"))
+for Config in Configs:
+    if Config["Default"] is True:
+        break
 def SubProcess(Switch, CPipe):
     Process = ClientTcpRelyProcess(Switch, CPipe)
     Process.Run()

@@ -1,9 +1,9 @@
-import time, asyncio, socket, sys, struct, logging, multiprocessing
+import time, asyncio, socket, struct, logging, json
 from multiprocessing import reduction
-multiprocessing.allow_connection_pickling()
+Config = json.load(open("Config.json"))
 class DSProtocol(asyncio.Protocol):
     """用于StDsocket的处理，目标发送数据时，将其包装后传给客户端"""
-    def __init__(self, ConnectInfo, Packer, TCPFlow, CStransport, CSprotocol):
+    def __init__(self, Loop, ConnectInfo, Packer, TCPFlow, CStransport, CSprotocol):
         """ConnectInfo 是客户端连接时发送的请求信息，包含用户名，连接协议种类等信息，
         CtStransport 是客户端用于连接服务端的接口"""
         self.CStransport = CStransport
@@ -11,6 +11,10 @@ class DSProtocol(asyncio.Protocol):
         self.ConnectInfo = ConnectInfo
         self.TCPFlow = TCPFlow
         self.Packer = Packer
+        self.Speed = 0
+        self.MaxSpeed = ConnectInfo["User"]["MaxSpeedPerConn"]
+        self.Loop = Loop
+        self.ResetTask = None
 
     def connection_made(self, transport):
         """CStransport在交由子进程loop管理后便暂停读取(在TCPRely中),
@@ -19,16 +23,36 @@ class DSProtocol(asyncio.Protocol):
         self.DStransport = transport
         self.CSprotocol.DStransport = transport
         self.SocketType  = "IPv4" if transport.get_extra_info("socket").family == socket.AF_INET else "IPv6"
+        self.ResetSpeed()
 
     def data_received(self, data):
         """向客户端送数据"""
-        self.TCPFlow[self.SocketType]["Down"] += len(data)
-        self.CStransport.write(self.Packer.pack(data))
+        #是否应该避免从dict中频繁取数据
+        data = self.Packer.pack(data)
+        datalen = len(data)
+        self.TCPFlow[self.SocketType]["Down"] += datalen
+        self.CStransport.write(data)
+        self.CheckSpeed(datalen)
 
     def connection_lost(self, exc):
         """若断开连接，则断开客户端,应返回一些报错信息"""
-        logging.debug("DSProtocol Closed")
+        #logging.debug("DSProtocol Closed")
         self.CStransport.close()
+        if self.ResetTask is not None:
+            self.ResetTask.cancel()
+
+    def CheckSpeed(self, datalen):
+        self.Speed += datalen
+        if self.Speed >= self.MaxSpeed:
+            #logging.debug("DSProtocol pause_reading")
+            self.DStransport.pause_reading()
+
+    def ResetSpeed(self):
+        if self.Speed >= self.MaxSpeed:
+            #logging.debug("DSProtocol resume_reading")
+            self.DStransport.resume_reading()
+        self.Speed = 0
+        self.ResetTask = self.Loop.call_later(1, self.ResetSpeed)
 
 class CSProtocol(asyncio.Protocol):
     """接收到客户端发送数据时，将其解包后传给目标"""
@@ -57,7 +81,7 @@ class CSProtocol(asyncio.Protocol):
 
     def connection_lost(self, exc):
         """若断开连接，则断开服务端,应返回一些报错信息"""
-        logging.debug("CSProtocol Closed")
+        #logging.debug("CSProtocol Closed")
         #回传流量
         self.OutPutFlowRecoder("TCP", self.TCPFlow, self.ConnectInfo)
         #关闭接口
@@ -75,11 +99,14 @@ class USProtocol(asyncio.Protocol):
         self.ClientAddr = ClientAddr
         self.CSUtransport = CSUtransport
         self.Loop = Loop
+        self.MaxSpeed = ConnectInfo["User"]["MaxSpeedPerConn"]
+        self.Speed = 0
+        self.ResetTask = None
 
     def connection_made(self, transport):
         self.UStransport = transport
         self.Family = "IPv4" if transport.get_extra_info("socket").family == socket.AF_INET else "IPv6"
-
+        self.ResetSpeed()
     def datagram_received(self, Data, Addr):
         """判断来源再决定方向"""
         if Addr == self.ClientAddr:
@@ -90,10 +117,12 @@ class USProtocol(asyncio.Protocol):
             task.add_done_callback(self.SendData)
         else:
             #封包
-            self.UDPFlow[self.Family]["Down"] += len(Data)
             Data = self.Packer.pack(Data)
+            datalen = len(Data)
+            self.UDPFlow[self.Family]["Down"] += datalen
             Data = self.AddHead(Addr, Data)
             self.UStransport.sendto(Data, self.ClientAddr)
+            self.CheckSpeed(datalen)
 
     def error_received(self, exc):
         logging.debug("UDP error_received:%s"%exc)
@@ -145,6 +174,19 @@ class USProtocol(asyncio.Protocol):
         Head += struct.pack('>H', Addr[1])
         return Head + Data
 
+    def CheckSpeed(self, datalen):
+        self.Speed += datalen
+        if self.Speed >= self.MaxSpeed:
+            #logging.debug("DSProtocol pause_reading")
+            self.UStransport.pause_reading()
+
+    def ResetSpeed(self):
+        if self.Speed >= self.MaxSpeed:
+            #logging.debug("DSProtocol resume_reading")
+            self.UStransport.resume_reading()
+        self.Speed = 0
+        self.ResetTask = self.Loop.call_later(1, self.ResetSpeed)
+
 class CSUProtocol(asyncio.Protocol):
     """用于在连接结束后关闭UPD通道,并上传流量"""
     def __init__(self, ConnectInfo, UDPFlow, OutPutFlowRecoder):
@@ -154,7 +196,7 @@ class CSUProtocol(asyncio.Protocol):
         self.ConnectInfo = ConnectInfo
 
     def connection_lost(self, exc):
-        logging.debug("CSUProtocol Closed")
+        #logging.debug("CSUProtocol Closed")
         if self.USprotocol is not None:
             self.USprotocol.close()
         self.OutPutFlowRecoder("UDP", self.UDPFlow, self.ConnectInfo)

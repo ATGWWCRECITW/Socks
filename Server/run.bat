@@ -1,2 +1,2 @@
-python "D:\python\Socks - stable\Server\MSocksServer.py"
+python "D:\python\MSocks\Server\MSocksServer.py"
 set /p startip=¿ªÊ¼IP:

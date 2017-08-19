@@ -5,8 +5,8 @@
         "Flow": {
             "TCP": {
                 "IPv4": {
-                    "Up": 0,
-                    "Down": 0
+                    "Up": 393526,
+                    "Down": 47783174
                 },
                 "IPv6": {
                     "Up": 0,
@@ -26,6 +26,6 @@
         },
         "Connection": 0,
         "MaxConnection": 100,
-        "MaxSpeedPerConn": 10000
+        "MaxSpeedPerConn": 1024000
     }
 }

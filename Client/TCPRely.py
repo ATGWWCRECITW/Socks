@@ -41,7 +41,7 @@ class ClientTcpRelyProcess(object):
             return None
         if ConnectInfo["FirstRequest"] is not None:
             if ConnectInfo["CMD"] == 1:#CONN
-                logging.debug("connect Request")
+                #logging.debug("connect Request")
                 #把ACSocket添加至loop
                 ACtransport,ACprotocol = await self.Loop.connect_accepted_socket(lambda:ACProtocol(ConnectInfo, Packer), ACSocket)
                 ACtransport.pause_reading()
@@ -135,11 +135,12 @@ class Socks5TcpAccepter(object):
         #VER,NMETHODS = b'\x05\x01' ===> VER=5,NMETHODS=1
         #VER = b'\x05' ===> VER = b'\x05'
         try:
-            VER,NMETHODS = await self.Loop.sock_recv(ACSocket, 2)
-            if VER != 5: #b'\x05'
+            VER = await self.Loop.sock_recv(ACSocket, 1)
+            NMETHODS = await self.Loop.sock_recv(ACSocket, 1)
+            if VER != b'\x05': #b'\x05'
                 ACSocket.close()
                 return None
-            METHODS = await self.Loop.sock_recv(ACSocket, NMETHODS)
+            METHODS = await self.Loop.sock_recv(ACSocket, struct.unpack('>B', NMETHODS)[0])
             #print("VER,METHODS",VER,METHODS)
             #检查模式
             if b'\x00' not in METHODS:
