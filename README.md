@@ -16,12 +16,8 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
 * 客户端和服务端支持全平台
 <br>
-<<<<<<< HEAD
-##使用
-=======
 ## 使用
->>>>>>> 7975f035e0878310d470c82ab5b5edde15554266
-Client目录下
+Client目录下<br>
 编辑ClientConfig.json<br>
 <pre><code>
 [
@@ -97,7 +93,7 @@ Server目录下
     }
 }
 </code></pre>
-完成配置后
+完成配置后<br>
 在Server目录下执行：python3 MSocksServer.py开启服务端<br>
 在Client目录下执行：python3 MSocksClient.py开启客户端<br>
 特别注意执行目录一定要在各自目录下,否则会提示找不到Mod中的pack和auth<br>
