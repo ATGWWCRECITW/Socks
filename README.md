@@ -11,6 +11,7 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 多线程工作(一个认证线程+n个转发线程)
 * 二次开发认证和转发方法较为简便
 * UDP/TCP/IPv4/IPv6流量统计
+* 链接限速
 * 每用户下每地址连接统计
 * 基于asyncio和uvloop,理论上有很强的并发能力
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
