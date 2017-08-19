@@ -1,0 +1,8 @@
+{
+    "ServerBindAddress":"0.0.0.0",
+    "ServerPublicAddress":"127.0.0.1",
+    "ServerPort":80,
+    "UserListType":"Json",
+    "AuthMethod":"Origin",
+    "UpdateInterval":300
+}

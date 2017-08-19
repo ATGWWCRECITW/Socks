@@ -1,0 +1,31 @@
+{
+    "testUser": {
+        "AuthMethod": "Origin",
+        "Password": "testUser",
+        "Flow": {
+            "TCP": {
+                "IPv4": {
+                    "Up": 0,
+                    "Down": 0
+                },
+                "IPv6": {
+                    "Up": 0,
+                    "Down": 0
+                }
+            },
+            "UDP": {
+                "IPv4": {
+                    "Up": 0,
+                    "Down": 0
+                },
+                "IPv6": {
+                    "Up": 0,
+                    "Down": 0
+                }
+            }
+        },
+        "Connection": 0,
+        "MaxConnection": 100,
+        "MaxSpeedPerConn": 10000
+    }
+}
