@@ -2,8 +2,8 @@
 一个简单的Socks5转发工具<br>
 需要环境:<br>
 python3.5 或以上<br>
-pycryptodome [安装](http://pycryptodome.readthedocs.io/en/latest/src/installation.html)(注意是pycryptodome不是pycryptodomex)<br>
-uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
+pycryptodome (pip install pycryptodome)[安装详情](http://pycryptodome.readthedocs.io/en/latest/src/installation.html)(注意是pycryptodome不是pycryptodomex)<br>
+uvloop (pip install uvloop)(linux下的服务端会自动选择，没有则使用原版loop)<br>
 本工具基于asyncio和uvloop开发,理论上有很强的并发能力<br>
 [关于asyncio+uvloop的并发性能](https://magic.io/blog/uvloop-blazing-fast-python-networking/)
 <br>
