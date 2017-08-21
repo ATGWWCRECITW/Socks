@@ -4,6 +4,7 @@
 python3.5 或以上<br>
 pycryptodome [安装](http://pycryptodome.readthedocs.io/en/latest/src/installation.html)(注意是pycryptodome不是pycryptodomex)<br>
 uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
+本工具基于asyncio和uvloop开发,理论上有很强的并发能力<br>
 [关于asyncio+uvloop的并发性能](https://magic.io/blog/uvloop-blazing-fast-python-networking/)
 <br>
 ## 特性
@@ -13,7 +14,6 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * UDP/TCP/IPv4/IPv6流量统计
 * 连接限速
 * 每用户下每地址连接统计
-* 基于asyncio和uvloop,理论上有很强的并发能力
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
 
 ## 客户端使用
