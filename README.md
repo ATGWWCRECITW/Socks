@@ -11,13 +11,12 @@ uvloop (直接pip install uvloop)(仅linux下的服务端需要)<br>
 * 多线程工作(一个认证线程+n个转发线程)
 * 二次开发认证和转发方法较为简便
 * UDP/TCP/IPv4/IPv6流量统计
-* 链接限速
+* 连接限速
 * 每用户下每地址连接统计
 * 基于asyncio和uvloop,理论上有很强的并发能力
 * 支持socks5 TCP connect和UDP ASSOCIATE(由于没用找到使用TCP bind模式的软件，暂时无法进行相关功能的开发)
-* 客户端和服务端支持全平台
 
-## 使用
+## 客户端使用
 Client目录下<br>
 编辑ClientConfig.json<br>
 <pre><code>
@@ -48,6 +47,7 @@ Client目录下<br>
 	...#其他配置
 ]
 </code></pre>
+## 服务端使用
 Server目录下
 编辑Config.json<br>
 <pre><code>
@@ -65,7 +65,7 @@ Server目录下
 编辑User.json<br>
 <pre><code>
 {
-    "testUser": {#用户名
+    "YourUserName": {#用户名
         "AuthMethod": "Origin",#认证方式，这个设置没用，以后可能会去掉
         "Password": "testUser",#用户密码
         "Flow": {#流量统计记录，服务端自己会维护，每次更新流量会加到原来的记录上
@@ -93,7 +93,8 @@ Server目录下
         "Connection": 0,#连接数统计，这个设置没用，以后可能会去掉
         "MaxConnection": 100,#最大连接数，暂时还没有加这个功能
         "MaxSpeedPerConn": 10000#单连接最大速度
-    }
+    },
+    ...
 }
 </code></pre>
 完成配置后<br>
